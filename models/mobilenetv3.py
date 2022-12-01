@@ -1,7 +1,7 @@
-'''MobileNetV3 in PyTorch.
+"""MobileNetV3 in PyTorch.
 See the paper "Inverted Residuals and Linear Bottlenecks:
 Mobile Networks for Classification, Detection and Segmentation" for more details.
-'''
+"""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,6 +11,8 @@ try:
     from torch.hub import load_state_dict_from_url
 except ImportError:
     from torch.utils.model_zoo import load_url as load_state_dict_from_url
+
+
 class hswish(nn.Module):
     def forward(self, x):
         out = x * F.relu6(x + 3, inplace=True) / 6
@@ -29,12 +31,26 @@ class SeModule(nn.Module):
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
 
         self.se = nn.Sequential(
-            nn.Conv2d(in_size, in_size // reduction, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.Conv2d(
+                in_size,
+                in_size // reduction,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                bias=False,
+            ),
             nn.BatchNorm2d(in_size // reduction),
             nn.ReLU(inplace=True),
-            nn.Conv2d(in_size // reduction, in_size, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.Conv2d(
+                in_size // reduction,
+                in_size,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                bias=False,
+            ),
             nn.BatchNorm2d(in_size),
-            hsigmoid()
+            hsigmoid(),
         )
 
     def forward(self, x):
@@ -42,25 +58,42 @@ class SeModule(nn.Module):
 
 
 class Block(nn.Module):
-    '''expand + depthwise + pointwise'''
-    def __init__(self, kernel_size, in_size, expand_size, out_size, nolinear, semodule, stride):
+    """expand + depthwise + pointwise"""
+
+    def __init__(
+        self, kernel_size, in_size, expand_size, out_size, nolinear, semodule, stride
+    ):
         super(Block, self).__init__()
         self.stride = stride
         self.se = semodule
 
-        self.conv1 = nn.Conv2d(in_size, expand_size, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv1 = nn.Conv2d(
+            in_size, expand_size, kernel_size=1, stride=1, padding=0, bias=False
+        )
         self.bn1 = nn.BatchNorm2d(expand_size)
         self.nolinear1 = nolinear
-        self.conv2 = nn.Conv2d(expand_size, expand_size, kernel_size=kernel_size, stride=stride, padding=kernel_size//2, groups=expand_size, bias=False)
+        self.conv2 = nn.Conv2d(
+            expand_size,
+            expand_size,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=kernel_size // 2,
+            groups=expand_size,
+            bias=False,
+        )
         self.bn2 = nn.BatchNorm2d(expand_size)
         self.nolinear2 = nolinear
-        self.conv3 = nn.Conv2d(expand_size, out_size, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv3 = nn.Conv2d(
+            expand_size, out_size, kernel_size=1, stride=1, padding=0, bias=False
+        )
         self.bn3 = nn.BatchNorm2d(out_size)
 
         self.shortcut = nn.Sequential()
         if stride == 1 and in_size != out_size:
             self.shortcut = nn.Sequential(
-                nn.Conv2d(in_size, out_size, kernel_size=1, stride=1, padding=0, bias=False),
+                nn.Conv2d(
+                    in_size, out_size, kernel_size=1, stride=1, padding=0, bias=False
+                ),
                 nn.BatchNorm2d(out_size),
             )
 
@@ -70,7 +103,7 @@ class Block(nn.Module):
         out = self.bn3(self.conv3(out))
         if self.se != None:
             out = self.se(out)
-        out = out + self.shortcut(x) if self.stride==1 else out
+        out = out + self.shortcut(x) if self.stride == 1 else out
         return out
 
 
@@ -104,16 +137,16 @@ class MobileNetV3_Large(nn.Module):
         self.conv2 = nn.Conv2d(160, 960, kernel_size=1, stride=1, padding=0, bias=False)
         self.bn2 = nn.BatchNorm2d(960)
         self.hs2 = hswish()
-        #self.linear3 = nn.Linear(960, 1280)
-        #self.bn3 = nn.BatchNorm1d(1280)
-        #self.hs3 = hswish()
-        #self.linear4 = nn.Linear(1280, num_classes)
+        # self.linear3 = nn.Linear(960, 1280)
+        # self.bn3 = nn.BatchNorm1d(1280)
+        # self.hs3 = hswish()
+        # self.linear4 = nn.Linear(1280, num_classes)
         self.init_params()
 
     def init_params(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                init.kaiming_normal_(m.weight, mode='fan_out')
+                init.kaiming_normal_(m.weight, mode="fan_out")
                 if m.bias is not None:
                     init.constant_(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
@@ -129,12 +162,11 @@ class MobileNetV3_Large(nn.Module):
         out0 = self.bneck(out)
         out1 = self.bneck2(out0)
         out1 = self.hs2(self.bn2(self.conv2(out1)))
-        #out1 = F.avg_pool2d(out1, 7)
-        #out1 = out1.view(out1.size(0), -1)
-        #out1 = self.hs3(self.bn3(self.linear3(out1)))
-        #out1 = self.linear4(out1)
-        return out0,out1
-
+        # out1 = F.avg_pool2d(out1, 7)
+        # out1 = out1.view(out1.size(0), -1)
+        # out1 = self.hs3(self.bn3(self.linear3(out1)))
+        # out1 = self.linear4(out1)
+        return out0, out1
 
 
 class MobileNetV3_Small(nn.Module):
@@ -153,7 +185,6 @@ class MobileNetV3_Small(nn.Module):
             Block(5, 40, 240, 40, hswish(), SeModule(40), 1),
             Block(5, 40, 120, 48, hswish(), SeModule(48), 1),
             Block(5, 48, 144, 48, hswish(), SeModule(48), 1),
-
         )
         self.bneck2 = nn.Sequential(
             Block(5, 48, 288, 96, hswish(), SeModule(96), 2),
@@ -164,16 +195,16 @@ class MobileNetV3_Small(nn.Module):
         self.conv2 = nn.Conv2d(96, 576, kernel_size=1, stride=1, padding=0, bias=False)
         self.bn2 = nn.BatchNorm2d(576)
         self.hs2 = hswish()
-        #self.linear3 = nn.Linear(576, 1280)
-        #self.bn3 = nn.BatchNorm1d(1280)
-        #self.hs3 = hswish()
-        #self.linear4 = nn.Linear(1280, num_classes)
+        # self.linear3 = nn.Linear(576, 1280)
+        # self.bn3 = nn.BatchNorm1d(1280)
+        # self.hs3 = hswish()
+        # self.linear4 = nn.Linear(1280, num_classes)
         self.init_params()
 
     def init_params(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                init.kaiming_normal_(m.weight, mode='fan_out')
+                init.kaiming_normal_(m.weight, mode="fan_out")
                 if m.bias is not None:
                     init.constant_(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
@@ -189,10 +220,10 @@ class MobileNetV3_Small(nn.Module):
         out = self.bneck1(out)
         out = self.bneck2(out)
         out = self.hs2(self.bn2(self.conv2(out)))
-        #out = F.avg_pool2d(out, 7)
-        #out = out.view(out.size(0), -1)
-        #out = self.hs3(self.bn3(self.linear3(out)))
-        #out = self.linear4(out)
+        # out = F.avg_pool2d(out, 7)
+        # out = out.view(out.size(0), -1)
+        # out = self.hs3(self.bn3(self.linear3(out)))
+        # out = self.linear4(out)
         return out
 
 
@@ -201,32 +232,35 @@ def MobileNetV3(pretrained, **kwargs):
     if pretrained:
         if isinstance(pretrained, str):
             model_dict = model.state_dict()
-            #model.load_state_dict(torch.load(pretrained)['state_dict'])
-            pretrained_dict = torch.load(pretrained)['state_dict']
+            # model.load_state_dict(torch.load(pretrained)['state_dict'])
+            pretrained_dict = torch.load(pretrained)["state_dict"]
 
+            for k1, v1 in pretrained_dict.items():
+                n1 = k1.replace("module.", "")
+                # print(k1)
 
-            for k1, v1 in pretrained_dict.items() :
-                n1 = k1.replace('module.', '')
-                #print(k1)
-                
-                for k2, v2 in model_dict.items() :
-                    n2 = k2.replace('bneck2.0.', 'bneck.13.')
-                    n2 = n2.replace('bneck2.1.', 'bneck.14.')
-                    if n1 == n2 :
-                        #print(k1,k2)
-                        model_dict[k2]=v1
+                for k2, v2 in model_dict.items():
+                    n2 = k2.replace("bneck2.0.", "bneck.13.")
+                    n2 = n2.replace("bneck2.1.", "bneck.14.")
+                    if n1 == n2:
+                        # print(k1,k2)
+                        model_dict[k2] = v1
 
             model.load_state_dict(model_dict)
-            #torch.save(model, 'test.pth.tar')
-            #for name,param in model.named_parameters():
+            # torch.save(model, 'test.pth.tar')
+            # for name,param in model.named_parameters():
         else:
-            raise Exception("darknet request a pretrained path. got [{}]".format(pretrained))
+            raise Exception(
+                "darknet request a pretrained path. got [{}]".format(pretrained)
+            )
     return model
+
 
 def test():
     net = MobileNetV3_Small()
-    x = torch.randn(2,3,224,224)
+    x = torch.randn(2, 3, 224, 224)
     y = net(x)
     print(y.size())
+
 
 # test()

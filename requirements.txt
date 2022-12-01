@@ -6,7 +6,6 @@ lmdb
 six
 matplotlib
 tqdm
-nni
 opencv_python
 progress
 filetype
